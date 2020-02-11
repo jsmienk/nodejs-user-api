@@ -1,0 +1,35 @@
+{
+  "name": "user-backend",
+  "version": "1.0.0",
+  "description": "REST API for user management, featuring: creating, retrieving, updating, and removing users; 2FA; email verification; email password reset; account level logging; and server logging.",
+  "main": "rest.js",
+  "scripts": {
+    "serve": "node rest.js"
+  },
+  "keywords": [
+    "rest",
+    "nodejs",
+    "express",
+    "jwt",
+    "mongodb",
+    "bcrypt",
+    "2FA",
+    "user management"
+  ],
+  "author": "Jeroen Smienk",
+  "license": "ISC",
+  "dependencies": {
+    "async-ratelimiter": "^1.2.7",
+    "authenticator": "^1.1.5",
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^1.19.0",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "express-jwt": "^5.3.1",
+    "helmet": "^3.21.2",
+    "ioredis": "^4.14.1",
+    "jsonwebtoken": "^8.5.1",
+    "mongoose": "^5.8.11",
+    "rootpath": "^0.1.2"
+  }
+}
