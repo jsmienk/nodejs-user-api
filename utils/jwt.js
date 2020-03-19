@@ -4,7 +4,7 @@ const expressJWT = require('express-jwt')
 const Users = require('collections/users')
 
 module.exports = () => {
-    return expressJWT({ secret: config.JWT_SECRET, isRevoked }).unless({
+    return expressJWT({ secret: config.JWT_SECRET, getToken, isRevoked }).unless({
         path: [
             // Routes that don't require authentication
             { methods: ['POST'], url: config.API_PREFIX + '/users' },  // Register
@@ -17,11 +17,23 @@ module.exports = () => {
     })
 }
 
-async function isRevoked(req, payload, done) {
-    const user = await Users.getById(payload.sub._id)
+function getToken (req) {
+    if (req.headers.authorization && req.headers.authorization.split(' ')[0] === 'Bearer') {
+        // Token from header
+        return req.headers.authorization.split(' ')[1]
+    } else if (req.cookies.token) {
+        // Token from cookie
+        return req.cookies.token
+    }
+    // No token found in request
+    return null
+}
+
+async function isRevoked(_, payload, done) {
+    const user = await Users.getById(payload._id)
     // Revoke token if user no longer exists
-    if (!payload.sub || !user) return done(null, true)
+    if (!user) return done(null, true)
     // Revoke token if user did not pass 2FA (if enabled)
-    if (user.use2FA && !payload.sub.passed2FA) return done(null, true)
+    if (user.use2FA && !payload.passed2FA) return done(null, true)
     done()
 }

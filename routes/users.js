@@ -34,7 +34,7 @@ function getAllUsers(req, res, next) {
  * <- 200 / 400 / 401 / 404 / 500
  */
 function getUserById(req, res, next) {
-    Users.getById(req.params.id)
+    Users.getById(req.params.id, req.params.id === req.user._id)
         .then(user => user ? res.status(200).json({ user }) : next(errors.not_found()))
         .catch(next)
 }
@@ -104,7 +104,7 @@ function updateUserById(req, res, next) {
     }
 
     // Check if the user is authorized
-    if (req.user.sub._id !== req.params.id) {
+    if (req.user._id !== req.params.id) {
         // Log information chance event
         res.accountEvent = { userId: req.params.id, type: accountEventType.INFORMATION_CHANGE_FAIL }
         return next(errors.forbidden('User can only update their own user!'))
@@ -127,7 +127,7 @@ function updateUserById(req, res, next) {
  */
 function removeUserById(req, res, next) {
     // Check if the user is authorized
-    if (req.user.sub._id !== req.params.id) {
+    if (req.user._id !== req.params.id) {
         return next(errors.forbidden('User can only remove their own user!'))
     }
 

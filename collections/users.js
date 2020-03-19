@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs')
 const authenticator = require('authenticator')
 
 const User = require('collections/models/user')
+const AccountLog = require('collections/models/account-log')
 
 /**
  * Operations:
@@ -32,7 +33,7 @@ module.exports = {
  */
 async function authenticateBasic(provided_email, password) {
     // Explicitly ask for hash because selection is disabled in the model
-    const user = await User.findOne({ email: provided_email }).select('+hash')
+    const user = await User.findOne({ email: provided_email }).select('+email +hash')
     if (!user) {
         // Compare 'nope' to 'password' to imitatie the time it takes if the user was found
         // The request duration no longer shows if an email address is in use
@@ -41,24 +42,26 @@ async function authenticateBasic(provided_email, password) {
     }
 
     // Specify inclusion criteria to exclude new fields by default!
-    const { _id, email, name, use2FA, creation, verified, hash } = user.toObject()
+    const { _id, meta, email, name, use2FA, creation, verified, hash } = user.toObject()
 
-    // Return only basic information; 2FA may be enabled
-    const session = {
+    // Only return non-sensitive information in the taken payload
+    const token = {
         _id,
+        verified,
         use2FA,
-        passed2FA: false,
-        verified
+        passed2FA: false
     }
 
+    const session = { ...token }
     // Add more sensitive information if this is the end of the auth flow
     if (!use2FA) {
+        session.meta = meta
         session.email = email
         session.name = name
         session.creation = creation
     }
 
-    return { session, authenticated: await bcrypt.compare(password, hash) }
+    return { token, session, authenticated: await bcrypt.compare(password, hash) }
 }
 
 /**
@@ -69,7 +72,7 @@ async function authenticateBasic(provided_email, password) {
  */
 async function authenticate2FA(id, totp) {
     // Explicitly ask for 2FA key because selection is disabled in the model
-    let user = await User.findById(id).select('+key2FA')
+    let user = await User.findById(id).select('+email +key2FA')
     // If the user cannot be found
     if (!user) throw errors.not_found()
 
@@ -84,17 +87,25 @@ async function authenticate2FA(id, totp) {
     }
 
     // Specify inclusion criteria to exclude new fields by default!
-    const { _id, email, name, use2FA, creation, verified, hash } = user.toObject()
+    const { _id, meta, email, name, use2FA, creation, verified, hash } = user.toObject()
 
-    return { session: {
+    // Only return non-sensitive information in the taken payload
+    const token = {
         _id,
+        verified,
+        use2FA,
+        passed2FA: false
+    }
+
+    const session = {
+        ...token,
+        meta,
         email,
         name,
-        use2FA,
-        passed2FA: authenticated,
-        creation,
-        verified
-    }, authenticated }
+        creation
+    }
+
+    return { token, session, authenticated }
 }
 
 /**
@@ -109,18 +120,20 @@ async function getAll() {
  * Get a specific user from the databases using its MongoDB ObjectId
  * Does not return the user's log and hashed password
  */
-async function getById(id) {
-    return User.findById(id)
+async function getById(id, sensitive=false) {
+    const query = User.findById(id)
+    if (sensitive) query.select('+email')
+    return query
 }
 
 /**
  * Create a new user using an email, name, and plain-text password
  * The password is hashed using bcrypt before insertion
  */
-async function create(email, name, password) {
+async function create(email, name, password, meta={}) {
     // Hash user password (with salt)
     const hash = await bcrypt.hash(password, config.BCRYPT_ROUNDS)
-    return new User({ email, name, hash }).save()
+    return new User({ email, name, hash, meta }).save()
 }
 
 /**
@@ -163,6 +176,6 @@ async function findByEmail(email) {
 /**
  * Log an account related event
  */
-async function logEvent(id, ip, type) {
-    return User.findByIdAndUpdate(id, { $push: { log: { ip, type } } })
+async function logEvent(user, ip, type) {
+    return new AccountLog({ user, ip, type }).save()
 }

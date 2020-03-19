@@ -45,16 +45,8 @@ exports.internal = (message) => {
     return this.create(500, 'Internal Server Error', message ? message : 'Not your fault!')
 }
 
-/**
- * Middleware function to handle error responses in the correct format:
- * 
- * {
- *   title: 'title of error'
- *   message: 'message of error'
- * }
- */
-exports.handleError = (thrown, req, res, next) => {
-    if (!thrown) return next()
+
+exports.fromThrown = (thrown) => {
     logger.debug(thrown)
 
     // Default error (500)
@@ -89,5 +81,20 @@ exports.handleError = (thrown, req, res, next) => {
         error = this.conflict(thrown.message)
     }
 
+    return error
+}
+
+
+/**
+ * Middleware function to handle error responses in the correct format:
+ * 
+ * {
+ *   title: 'title of error'
+ *   message: 'message of error'
+ * }
+ */
+exports.handleError = (thrown, req, res, next) => {
+    if (!thrown) return next()
+    const error = this.fromThrown(thrown)
     return res.status(error.code).json(error)
 }

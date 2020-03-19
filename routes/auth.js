@@ -145,7 +145,7 @@ function resetPassword(req, res, next) {
  */
 function prepare2FA(req, res, next) {
     const key2FA = authenticator.generateKey()
-    Users.updateById(req.user.sub._id, { key2FA, use2FA: false })
+    Users.updateById(req.user._id, { key2FA, use2FA: false })
         .then(user => {
             logger.debug(user)
             if (!user) return next(errors.not_found())
@@ -170,10 +170,10 @@ function authenticate2FA(req, res, next) {
         return next(errors.bad_request('No token was provided!'))
     }
 
-    Users.authenticate2FA(req.user.sub._id, token)
+    Users.authenticate2FA(req.user._id, token)
         .then(result => {
             // Log enabling 2FA
-            if (req.user.sub.use2FA === false && result.session.use2FA === true) {
+            if (req.user.use2FA === false && result.session.use2FA === true) {
                 res.accountEvent = { userId: result.session._id, type: accountEventType._2FA_ENABLED }
             }
             handleAuthenticationResult(result, req, res, next, accountEventType._2FA_FAIL, accountEventType._2FA_SUCCESS)
@@ -186,7 +186,7 @@ function authenticate2FA(req, res, next) {
  * <- 204 / 401 / 404 / 500
  */
 function disable2FA(req, res, next) {
-    Users.updateById(req.user.sub._id, { use2FA: false })
+    Users.updateById(req.user._id, { use2FA: false })
         .then(user => {
             if (!user) return next(errors.not_found())
             // Log 2FA disabled
@@ -205,21 +205,33 @@ function disable2FA(req, res, next) {
  */
 function handleAuthenticationResult(result, req, res, next, eventTypeFail, eventTypeSuccess) {
     // Setup account event log (fail=default)
-    if (!res.accountEvent) res.accountEvent = { userId: result.session._id, type: eventTypeFail }
+    if (!res.accountEvent)
+        res.accountEvent = { userId: result.session._id, type: eventTypeFail }
 
     // If the attempt failed to authenticate the account
-    if (!result.authenticated) return next(errors.unauthorized())
+    if (!result.authenticated)
+        return next(errors.unauthorized())
 
     // Account was successfully authenticated: change account event type
-    if (res.accountEvent.type === eventTypeFail) res.accountEvent.type = eventTypeSuccess
+    if (res.accountEvent.type === eventTypeFail)
+        res.accountEvent.type = eventTypeSuccess
 
     // Create JWT asynchronousnly
-    const jwtData = { sub: result.session }
     const jwtOptions = { expiresIn: config.JWT_EXPIRES_IN }
-    const token = jwt.sign(jwtData, config.JWT_SECRET, jwtOptions, (err, token) => {
+    jwt.sign(result.token, config.JWT_SECRET, jwtOptions, (err, token) => {
         if (err) return next(err)
         // Return new JWT
-        res.status(200).json({ session: result.session, token })
+        res.status(200)
+            .cookie('token', token, {
+                httpOnly: true,
+                sameSite: 'strict',
+                path: config.API_PREFIX,
+                secure: config.HTTPS_ENABLED,
+                maxAge: config.JWT_EXPIRES_IN * 1000
+            })
+            // also pass token in body for non-web apps!
+            // TODO: add header to identify the application and optionally return the token in the body
+            .json({ session: result.session, token })
     })
 }
 

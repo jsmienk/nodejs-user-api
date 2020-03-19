@@ -1,7 +1,14 @@
-/* SERVER */
-const APP_NAME = 'DinnerTime'
+/* GENERAL */
+const APP_NAME = 'project'
 const API_PREFIX = '/api/v0'
 const PORT = 3000
+
+const { level } = require('utils/logger')
+const LOG_LEVEL = level.DEBUG
+
+/* SECURITY */
+const HTTPS_ENABLED = false
+const CORS_DOMAINS = ['http://127.0.0.1:8080', 'http://localhost:8080']
 
 /* MONGODB */
 const MONGODB_NAME = 'development'
@@ -11,7 +18,7 @@ const MONGODB_PORT = 27017
 const MONGODB_DB = 'dinnertime'
 const MONGODB_URI = 'mongodb://' + MONGODB_NAME + ':' + MONGODB_PASS + '@' + MONGODB_HOST + ':' + MONGODB_PORT + '/' + MONGODB_DB + '?authSource=' + MONGODB_DB
 
-const NAME_REGEX = /^([\p{L}][',.-]?[ ]?)+$/u
+const NAME_REGEX = /^([\p{L}0-9][',.-]?[ ]?)+$/u
 const EMAIL_REGEX = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
 
 /* JWT */
@@ -28,8 +35,9 @@ const MIN_PASS_LENGTH = 8
 /*
 Required exports:
 - APP_NAME           Name of the client application this API serves
-- API_PREFIX         Path prefixed before all routes, E.g. /api/v-alpha
+- API_PREFIX         Path prefixed to all routes, E.g. /api/v0/users/1234
 - PORT               Port of the server to run on
+- HTTPS_ENABLED      If HTTPS is enabled
 - MONGODB_URI        URI of the MongoDB to connect to
 - JWT_SECRET         Secret for the JWT validation
 - JWT_HOURS          Number of hours after which the JWT expires
@@ -43,6 +51,9 @@ module.exports = {
     APP_NAME,
     API_PREFIX,
     PORT,
+    LOG_LEVEL,
+    HTTPS_ENABLED,
+    CORS_DOMAINS,
     MONGODB_URI,
     JWT_SECRET,
     JWT_EXPIRES_IN,

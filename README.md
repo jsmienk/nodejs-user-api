@@ -4,10 +4,14 @@ REST API for user management, featuring: creating, retrieving, updating, and rem
 
 ## TODO
 
+- [Security Checklist](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/HTML5_Security_Cheat_Sheet.md)
 - Send email when creating account [Postmark?](https://postmarkapp.com).
 - Send email when requesting a password reset [Postmark?](https://postmarkapp.com).
 - [Rate Limiting](https://blog.risingstack.com/10-best-practices-for-writing-node-js-rest-apis/)
 - [DB Performance](https://www.mongodb.com/blog/post/performance-best-practices-mongodb-data-modeling-and-memory-sizing)
+- [CSRF Protection](https://github.com/expressjs/csurf)
+- JWT Token refreshing
+- Device sessions
 
 # API Documentation
 

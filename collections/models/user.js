@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const Schema = mongoose.Schema
+
 const NAME_REGEX = require('config').NAME_REGEX
 const EMAIL_REGEX = require('config').EMAIL_REGEX
 
@@ -17,19 +18,53 @@ log         Array       Log of (login) activity
 
 const user = new Schema({
     // first two are subject to user input
-    email: { type: String, unique: true, required: true, trim: true, match: EMAIL_REGEX, minlength: 5, maxlength: 256 },
-    name: { type: String, required: true, trim: true, match: NAME_REGEX, minlength: 2, maxlength: 80 },
+    email: {
+        type: String,
+        unique: true,
+        required: true,
+        trim: true,
+        match: EMAIL_REGEX,
+        minlength: 5,
+        maxlength: 256,
+        select: false
+    },
+    name: {
+        type: String,
+        required: true,
+        trim: true,
+        match: NAME_REGEX,
+        minlength: 2,
+        maxlength: 64
+    },
     // below is created ourselves
-    hash: { type: String, required: true, select: false },
-    key2FA: { type: String, select: false },
-    use2FA: { type: Boolean, default: false },
-    creation: { type: Date, default: Date.now },
-    verified: { type: Boolean, default: false },
-    log: [{
-    	date: { type: Date, default: Date.now },
-    	ip: { type: String },
-    	type: { type: Number, required: true }
-    }]
+    hash: {
+        type: String,
+        required: true,
+        select: false
+    },
+    key2FA: {
+        type: String,
+        select: false
+    },
+    use2FA: {
+        type: Boolean,
+        required: true,
+        default: false
+    },
+    creation: {
+        type: Date,
+        required: true,
+        default: Date.now
+    },
+    verified: {
+        type: Boolean,
+        required: true,
+        default: false
+    },
+    log: [{ type: Schema.Types.ObjectId, ref: 'AccountLog' }],
+    sessions: [{ type: Schema.Types.ObjectId, ref: 'DeviceSession' }],
+    // below is used by application specific information
+    meta: { type: Object }
 })
 
 // user.set('toJSON', { virtuals: true })
