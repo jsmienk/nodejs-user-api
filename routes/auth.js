@@ -4,7 +4,7 @@ const errors = require('utils/errors')
 const logger = require('utils/logger').logger
 const jwt    = require('jsonwebtoken')
 const authenticator = require('authenticator')
-const accountEventType = require('utils/account-event-logger').enumEventType
+const accountEventType = require('utils/account-logger').enumEventType
 
 const Users = require('collections/users')
 
@@ -173,7 +173,7 @@ function authenticate2FA(req, res, next) {
     Users.authenticate2FA(req.user._id, token)
         .then(result => {
             // Log enabling 2FA
-            if (req.user.use2FA === false && result.session.use2FA === true) {
+            if (!req.user.use2FA && result.session.use2FA) {
                 res.accountEvent = { userId: result.session._id, type: accountEventType._2FA_ENABLED }
             }
             handleAuthenticationResult(result, req, res, next, accountEventType._2FA_FAIL, accountEventType._2FA_SUCCESS)

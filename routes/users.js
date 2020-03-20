@@ -3,7 +3,7 @@ const router = require('express').Router()
 const errors = require('utils/errors')
 const logger = require('utils/logger').logger
 const jwt = require('jsonwebtoken')
-const accountEventType = require('utils/account-event-logger').enumEventType
+const accountEventType = require('utils/account-logger').enumEventType
 
 const Users = require('collections/users')
 

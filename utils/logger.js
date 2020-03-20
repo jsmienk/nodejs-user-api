@@ -10,9 +10,16 @@ class Logger {
         return (req, res, next) => {
             // Log the request and response of any API call
             const reqLog = '\n-> ' + req.method + ' ' + req.originalUrl + '\t(' + req.ip + ')'
+            const reqHeaders = req.headers
             res.on('finish', () => {
                 // Request
                 this.info(reqLog)
+                // Log headers on debug level
+                for (const header in reqHeaders) {
+                    this.debug('        ' + header + ': ' + reqHeaders[header])
+                }
+                // Trailing new line
+                this.info('')
                 // Response
                 this.info('    <- ' + res.statusCode + ' ' + res.statusMessage)
                 // Log headers on debug level

@@ -37,6 +37,11 @@ const user = new Schema({
         maxlength: 64
     },
     // below is created ourselves
+    creation: {
+        type: Date,
+        required: true,
+        default: Date.now
+    },
     hash: {
         type: String,
         required: true,
@@ -49,17 +54,14 @@ const user = new Schema({
     use2FA: {
         type: Boolean,
         required: true,
-        default: false
-    },
-    creation: {
-        type: Date,
-        required: true,
-        default: Date.now
+        default: false,
+        select: false
     },
     verified: {
         type: Boolean,
         required: true,
-        default: false
+        default: false,
+        select: false
     },
     log: [{ type: Schema.Types.ObjectId, ref: 'AccountLog' }],
     sessions: [{ type: Schema.Types.ObjectId, ref: 'DeviceSession' }],

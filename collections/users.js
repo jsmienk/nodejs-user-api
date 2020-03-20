@@ -6,6 +6,7 @@ const authenticator = require('authenticator')
 
 const User = require('collections/models/user')
 const AccountLog = require('collections/models/account-log')
+const DeviceSession = require('collections/models/device-session')
 
 /**
  * Operations:
@@ -33,7 +34,7 @@ module.exports = {
  */
 async function authenticateBasic(provided_email, password) {
     // Explicitly ask for hash because selection is disabled in the model
-    const user = await User.findOne({ email: provided_email }).select('+email +hash')
+    const user = await User.findOne({ email: provided_email }).select('+email +hash +key2FA +use2FA +verified')
     if (!user) {
         // Compare 'nope' to 'password' to imitatie the time it takes if the user was found
         // The request duration no longer shows if an email address is in use
@@ -72,7 +73,7 @@ async function authenticateBasic(provided_email, password) {
  */
 async function authenticate2FA(id, totp) {
     // Explicitly ask for 2FA key because selection is disabled in the model
-    let user = await User.findById(id).select('+email +key2FA')
+    let user = await User.findById(id).select('+email +key2FA +use2FA +verified')
     // If the user cannot be found
     if (!user) throw errors.not_found()
 
@@ -87,7 +88,7 @@ async function authenticate2FA(id, totp) {
     }
 
     // Specify inclusion criteria to exclude new fields by default!
-    const { _id, meta, email, name, use2FA, creation, verified, hash } = user.toObject()
+    const { _id, meta, email, name, use2FA, creation, verified } = user.toObject()
 
     // Only return non-sensitive information in the taken payload
     const token = {
@@ -113,7 +114,7 @@ async function authenticate2FA(id, totp) {
  * Does not return the users' logs and hashed passwords
  */
 async function getAll() {
-    return User.find()
+    return User.find().select('-__v -log -sessions')
 }
 
 /**
@@ -121,8 +122,9 @@ async function getAll() {
  * Does not return the user's log and hashed password
  */
 async function getById(id, sensitive=false) {
-    const query = User.findById(id)
-    if (sensitive) query.select('+email')
+    const query = User.findById(id).select('-__v')
+    if (!sensitive) query.select('-log -sessions')
+    if (sensitive)  query.select('+email +use2FA +verified')
     return query
 }
 
@@ -161,8 +163,10 @@ async function updateById(id, params) {
 /**
  * Delete an existing user using its MongoDB ObjectId
  */
-async function removeById(id) {
-    return User.findByIdAndRemove(id)
+async function removeById(user) {
+    await AccountLog.remove({ user })
+    await DeviceSession.remove({ user })
+    return User.findByIdAndRemove(user)
 }
 
 /**

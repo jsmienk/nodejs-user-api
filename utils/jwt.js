@@ -18,13 +18,12 @@ module.exports = () => {
 }
 
 function getToken (req) {
-    if (req.headers.authorization && req.headers.authorization.split(' ')[0] === 'Bearer') {
-        // Token from header
+    // Token from header
+    if (req.headers.authorization && req.headers.authorization.split(' ')[0] === 'Bearer')
         return req.headers.authorization.split(' ')[1]
-    } else if (req.cookies.token) {
-        // Token from cookie
+    // Token from cookie
+    if (req.cookies.token)
         return req.cookies.token
-    }
     // No token found in request
     return null
 }

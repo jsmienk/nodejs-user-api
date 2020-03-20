@@ -14,13 +14,17 @@ const app = require('express')()
 
 // Register request middleware (order matters)
 app.use(logger.requestLogger)
-app.use(require('cors')({ origin: config.CORS_DOMAINS, credentials: true }))
+app.use(require('cors')({
+    origin: config.CORS_DOMAINS,
+    methods: 'GET,POST,PUT,DELETE',
+    credentials: true
+}))
 app.use(require('helmet')())
 app.use(require('cookie-parser')())
 app.use(require('utils/jwt')())
 app.use(require('body-parser').urlencoded({ extended: false }))
 app.use(require('body-parser').json())
-app.use(require('utils/account-event-logger').accountEventLogger)
+app.use(require('utils/account-logger').accountLogger)
 
 // Register API Routes
 app.use(config.API_PREFIX + '/users',   require('routes/users'))

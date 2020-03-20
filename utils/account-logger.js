@@ -28,7 +28,7 @@ const enumEventType = Object.freeze({
     _2FA_SUCCESS: 12
 })
 
-const accountEventLogger = (req, res, next) => {
+const accountLogger = (req, res, next) => {
     // Hook on before the request is handled, so we can respond after
     res.on('finish', () => {
         // If an event was passed
@@ -47,6 +47,6 @@ const accountEventLogger = (req, res, next) => {
 }
 
 module.exports = {
-    accountEventLogger,
+    accountLogger,
     enumEventType
 }
