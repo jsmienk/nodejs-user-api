@@ -7,7 +7,9 @@ const { level } = require('utils/logger')
 const LOG_LEVEL = level.DEBUG
 
 /* SECURITY */
-const HTTPS_ENABLED = false
+const HTTPS_ENABLED = true
+const HTTPS_KEY_FILE = 'ssl/key.pem'
+const HTTPS_CERT_FILE = 'ssl/cert.pem'
 const CORS_DOMAINS = ['http://127.0.0.1:8080', 'http://localhost:8080']
 
 /* MONGODB */
@@ -53,6 +55,8 @@ module.exports = {
     PORT,
     LOG_LEVEL,
     HTTPS_ENABLED,
+    HTTPS_KEY_FILE,
+    HTTPS_CERT_FILE,
     CORS_DOMAINS,
     MONGODB_URI,
     JWT_SECRET,

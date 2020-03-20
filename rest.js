@@ -9,6 +9,7 @@ logger.setLevel(config.LOG_LEVEL)
 logger.info('Starting server...')
 
 const app = require('express')()
+const https = require('https')
 
 // TODO: require('utils/rate-limit')
 
@@ -34,8 +35,18 @@ app.use(config.API_PREFIX + '/auth',    require('routes/auth'))
 app.use(require('utils/errors').handleError)
 
 // Start server
-const port = config.PORT
-const server = app.listen(port, () => logger.info('Server listening on port: ' + port))
+let server
+if (config.HTTPS_ENABLED) {
+    // HTTPS server
+    const fs = require('fs')
+    server = https.createServer({
+        key: fs.readFileSync(config.HTTPS_KEY_FILE),
+        cert: fs.readFileSync(config.HTTPS_CERT_FILE)
+    }, app).listen(config.PORT)
+} else {
+    // HTTP server
+    server = app.listen(config.PORT, () => logger.info('Server listening on port: ' + config.PORT))
+}
 
 const db = require('utils/db')()
 

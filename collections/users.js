@@ -134,8 +134,8 @@ async function updateById(id, params) {
  * Delete an existing user using its MongoDB ObjectId
  */
 async function removeById(user) {
-    await AccountLog.remove({ user })
-    await DeviceSession.remove({ user })
+    await AccountLog.deleteMany({ user })
+    await DeviceSession.deleteMany({ user })
     return User.findByIdAndRemove(user)
 }
 
