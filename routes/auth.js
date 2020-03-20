@@ -35,7 +35,7 @@ function authenticateBasic(req, res, next) {
     }
 
     Users.authenticateBasic(email, password)
-        .then(result => handleAuthenticationResult(result, req, res, next, accountEventType.LOGIN_FAIL, accountEventType.LOGIN_SUCCESS))
+        .then(result => handleAuthenticationResult(result, res, next, accountEventType.LOGIN_FAIL, accountEventType.LOGIN_SUCCESS))
         .catch(next)
 }
 
@@ -176,7 +176,7 @@ function authenticate2FA(req, res, next) {
             if (!req.user.use2FA && result.session.use2FA) {
                 res.accountEvent = { userId: result.session._id, type: accountEventType._2FA_ENABLED }
             }
-            handleAuthenticationResult(result, req, res, next, accountEventType._2FA_FAIL, accountEventType._2FA_SUCCESS)
+            handleAuthenticationResult(result, res, next, accountEventType._2FA_FAIL, accountEventType._2FA_SUCCESS)
         })
         .catch(next)
 }
@@ -203,7 +203,7 @@ function disable2FA(req, res, next) {
  * Authentication result helper
  * Handling a basic (email/password) or 2FA attempt is the same
  */
-function handleAuthenticationResult(result, req, res, next, eventTypeFail, eventTypeSuccess) {
+function handleAuthenticationResult(result, res, next, eventTypeFail, eventTypeSuccess) {
     // Setup account event log (fail=default)
     if (!res.accountEvent)
         res.accountEvent = { userId: result.session._id, type: eventTypeFail }

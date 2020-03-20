@@ -42,27 +42,12 @@ async function authenticateBasic(provided_email, password) {
         throw errors.unauthorized()
     }
 
-    // Specify inclusion criteria to exclude new fields by default!
-    const { _id, meta, email, name, use2FA, creation, verified, hash } = user.toObject()
+    const authenticated = await bcrypt.compare(password, user.hash)
+    // If we failed
+    if (!authenticated)
+        return { session: { _id: user._id }, authenticated }
 
-    // Only return non-sensitive information in the taken payload
-    const token = {
-        _id,
-        verified,
-        use2FA,
-        passed2FA: false
-    }
-
-    const session = { ...token }
-    // Add more sensitive information if this is the end of the auth flow
-    if (!use2FA) {
-        session.meta = meta
-        session.email = email
-        session.name = name
-        session.creation = creation
-    }
-
-    return { token, session, authenticated: await bcrypt.compare(password, hash) }
+    return { ...createTokenAndSessionFromUser(user, false), authenticated }
 }
 
 /**
@@ -81,32 +66,17 @@ async function authenticate2FA(id, totp) {
     if (!user.key2FA) throw errors.unauthorized()
 
     const authenticated = authenticator.verifyToken(user.key2FA, totp) !== null
+    // If we failed
+    if (!authenticated)
+        return { session: { _id: user._id }, authenticated }
+
     // 2FA preparation success if use was disabled but the authentication succeeded
     if (!user.use2FA && authenticated) {
         // Enable 2FA
         user = await updateById(id, { use2FA: true })
     }
 
-    // Specify inclusion criteria to exclude new fields by default!
-    const { _id, meta, email, name, use2FA, creation, verified } = user.toObject()
-
-    // Only return non-sensitive information in the taken payload
-    const token = {
-        _id,
-        verified,
-        use2FA,
-        passed2FA: false
-    }
-
-    const session = {
-        ...token,
-        meta,
-        email,
-        name,
-        creation
-    }
-
-    return { token, session, authenticated }
+    return { ...createTokenAndSessionFromUser(user, authenticated), authenticated }
 }
 
 /**
@@ -182,4 +152,36 @@ async function findByEmail(email) {
  */
 async function logEvent(user, ip, type) {
     return new AccountLog({ user, ip, type }).save()
+}
+
+
+// HELPERS
+
+/**
+ * Helper to create a token and session object from an authenticated user
+ * @param user
+ * @param passed2FA
+ */
+function createTokenAndSessionFromUser(user, passed2FA=false) {
+    // Specify inclusion criteria to exclude new fields by default!
+    const { _id, meta, email, name, use2FA, creation, verified } = user.toObject()
+
+    // Only return non-sensitive information in the token payload
+    const token = {
+        _id,
+        verified,
+        use2FA,
+        passed2FA
+    }
+
+    const session = { ...token }
+    // Add more sensitive information if this is the end of the auth flow
+    if (!use2FA || (use2FA && passed2FA)) {
+        session.meta = meta
+        session.email = email
+        session.name = name
+        session.creation = creation
+    }
+
+    return { token, session }
 }

@@ -4,6 +4,7 @@ REST API for user management, featuring: creating, retrieving, updating, and rem
 
 ## TODO
 
+- [Security Cheatsheet](https://cheatsheetseries.owasp.org)
 - [Security Checklist](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/HTML5_Security_Cheat_Sheet.md)
 - Send email when creating account [Postmark?](https://postmarkapp.com).
 - Send email when requesting a password reset [Postmark?](https://postmarkapp.com).
