@@ -8,6 +8,7 @@ REST API for user management, featuring: creating, retrieving, updating, and rem
 - Send email when requesting a password reset [Postmark?](https://postmarkapp.com).
 - JWT Token refreshing
 - Device sessions
+- [MongoDB TLS](https://docs.mongodb.com/manual/tutorial/configure-ssl/)
 - [Rate Limiting](https://blog.risingstack.com/10-best-practices-for-writing-node-js-rest-apis/)
 - ? [CSRF Protection](https://github.com/expressjs/csurf)
 
@@ -17,6 +18,7 @@ REST API for user management, featuring: creating, retrieving, updating, and rem
 - [Security Checklist](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/HTML5_Security_Cheat_Sheet.md)
 - [DB Performance](https://www.mongodb.com/blog/post/performance-best-practices-mongodb-data-modeling-and-memory-sizing)
 - [Self-Signed Cert creation](https://nodejs.org/en/knowledge/HTTP/servers/how-to-create-a-HTTPS-server/)
+- [MaxMind IP Geolocation](https://github.com/runk/node-maxmind)
 
 # API Documentation
 

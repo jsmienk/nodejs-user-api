@@ -13,7 +13,8 @@ const log = new Schema({
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     date: { type: Date, required: true, default: Date.now },
     ip: { type: String, required: true },
-    type: { type: Number, required: true }
+    type: { type: Number, required: true },
+    location: { type: String }
 })
 
 // log.set('toJSON', { virtuals: true })

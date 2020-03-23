@@ -1,8 +1,11 @@
+'use strict'
+
 const config = require('config')
 const router = require('express').Router()
 const errors = require('utils/errors')
 const logger = require('utils/logger').logger
-const jwt    = require('jsonwebtoken')
+const jwtAuth = require('utils/jwt')
+const useragent = require('express-useragent')
 const authenticator = require('authenticator')
 const accountEventType = require('utils/account-logger').enumEventType
 
@@ -12,13 +15,14 @@ const Users = require('collections/users')
 /**
  * AUTH COLLECTION
  */
-router.post(  '/login',         authenticateBasic)
-router.put(   '/verify/:token', verifyEmail)
-router.post(  '/reset',         emailPasswordResetToken)
-router.put(   '/reset/:token',  resetPassword)
-router.post(  '/2fa',           prepare2FA)
-router.post(  '/2fa/verify',    authenticate2FA)
-router.delete('/2fa',           disable2FA)
+router.post(  '/login',         useragent.express(), authenticateBasic)
+router.post(  '/logout',                             logout)
+router.put(   '/verify/:token',                      verifyEmail)
+router.post(  '/reset',                              emailPasswordResetToken)
+router.put(   '/reset/:token',                       resetPassword)
+router.post(  '/2fa',                                prepare2FA)
+router.post(  '/2fa/verify',    useragent.express(), authenticate2FA)
+router.delete('/2fa',                                disable2FA)
 
 
 /**
@@ -35,8 +39,15 @@ function authenticateBasic(req, res, next) {
     }
 
     Users.authenticateBasic(email, password)
-        .then(result => handleAuthenticationResult(result, res, next, accountEventType.LOGIN_FAIL, accountEventType.LOGIN_SUCCESS))
+        .then(result => handleAuthResult(result, req, res, next, accountEventType.LOGIN_FAIL, accountEventType.LOGIN_SUCCESS))
         .catch(next)
+}
+
+/**
+ * Logout by clearing token session cookies
+ */
+function logout(_, res, __) {
+    jwtAuth.clearCookies(res).status(204).send()
 }
 
 /**
@@ -46,16 +57,14 @@ function authenticateBasic(req, res, next) {
 function verifyEmail(req, res, next) {
     const token = req.params.token
     // Check parameters (400)
-    if (!token) {
+    if (!token)
         return next(errors.bad_request('No token was provided!'))
-    }
 
     // Check token validity (400)
-    jwt.verify(token, config.JWT_SECRET, (err, payload) => {
+    jwtAuth.verify(token, (err, payload) => {
         if (err) return next(err)
-
         // Update password
-        Users.updateById(payload.verify._id, { verified: true })
+        Users.updateById(payload.verify, { verified: true })
             .then(user => {
                 if (!user) return next(errors.not_found())
                 // Log email verification
@@ -82,12 +91,9 @@ function emailPasswordResetToken(req, res, next) {
     // Find user
     Users.findByEmail(email)
         .then(user => {
-            const jwtData = { reset: { _id: user ? user._id : 'dummy' } }
-            const jwtOptions = { expiresIn: config.JWT_PW_RESET_TIME }
             // Generate JWT (also if user is not found to not reveal that this email is not in use)
-            jwt.sign(jwtData, config.JWT_SECRET, jwtOptions, (err, token) => {
+            jwtAuth.signEmailToken({ reset: user ? user._id : 'dummy' }, (err, token) => {
                 if (err) return next(err)
-
                 // Email only if the email is used by a user
                 if (user) {
                     // Log password reset request
@@ -110,6 +116,8 @@ function emailPasswordResetToken(req, res, next) {
 /**
  * Reset the password using a special JWT (query param) and a new password (body)
  * <- 204 / 400 / 404 / 500
+ * 
+ * TODO: revoke device sessions!
  */
 function resetPassword(req, res, next) {
     const token = req.params.token
@@ -124,11 +132,10 @@ function resetPassword(req, res, next) {
     }
 
     // Check token validity (400)
-    jwt.verify(token, config.JWT_SECRET, (err, payload) => {
+    jwtAuth.verify(token, (err, payload) => {
         if (err) return next(err)
-
         // Update password
-        Users.updateById(payload.reset._id, { password })
+        Users.updateById(payload.reset, { password })
             .then(user => {
                 if (!user) return next(errors.not_found())
                 // Log password reset
@@ -140,7 +147,7 @@ function resetPassword(req, res, next) {
 }
 
 /**
- * Prepare 2FA for a user to use with any TOTP mobile application
+ * Prepare 2FA  for the authenticated user to use with any TOTP mobile application
  * <- 201 / 401 / 404 / 500
  */
 function prepare2FA(req, res, next) {
@@ -159,8 +166,8 @@ function prepare2FA(req, res, next) {
 }
 
 /**
- * Verify 2FA using a 6-digit TOTP token for a certain user
- * This is also used to confirm the enabling of 2FA
+ * Verify 2FA using a 6-digit TOTP token for the authenticated user
+ * This is *also* used to confirm the enabling of 2FA
  * <- 200 / 400 / 401 / 404 / 500
  */
 function authenticate2FA(req, res, next) {
@@ -172,17 +179,16 @@ function authenticate2FA(req, res, next) {
 
     Users.authenticate2FA(req.user._id, token)
         .then(result => {
-            // Log enabling 2FA
-            if (!req.user.use2FA && result.session.use2FA) {
+            // If this request was to enable 2FA. log the enabling 2FA,
+            if (!req.user.use2FA && result.session.use2FA)
                 res.accountEvent = { userId: result.session._id, type: accountEventType._2FA_ENABLED }
-            }
-            handleAuthenticationResult(result, res, next, accountEventType._2FA_FAIL, accountEventType._2FA_SUCCESS)
+                handleAuthResult(result, req, res, next, accountEventType._2FA_FAIL, accountEventType._2FA_SUCCESS)
         })
         .catch(next)
 }
 
 /**
- * Disable 2FA for a user
+ * Disable 2FA for the authenticated user
  * <- 204 / 401 / 404 / 500
  */
 function disable2FA(req, res, next) {
@@ -201,37 +207,37 @@ function disable2FA(req, res, next) {
 
 /**
  * Authentication result helper
- * Handling a basic (email/password) or 2FA attempt is the same
+ * Because handling a basic (email/password) or 2FA authentication attempt is the same
+ * @param result { user: Object, payload: Object, authenticated: Boolean }
  */
-function handleAuthenticationResult(result, res, next, eventTypeFail, eventTypeSuccess) {
-    // Setup account event log (fail=default)
-    if (!res.accountEvent)
-        res.accountEvent = { userId: result.session._id, type: eventTypeFail }
-
+function handleAuthResult(result, req, res, next, eventTypeFail, eventTypeSuccess) {
     // If the attempt failed to authenticate the account
-    if (!result.authenticated)
+    if (!result.authenticated) {
+        // Log fail
+        res.accountEvent = { userId: result.user._id, type: eventTypeFail }
         return next(errors.unauthorized())
+    }
+    // Log success
+    if (!res.accountEvent)
+        res.accountEvent = { userId: result.user._id, type: eventTypeSuccess }
 
-    // Account was successfully authenticated: change account event type
-    if (res.accountEvent.type === eventTypeFail)
-        res.accountEvent.type = eventTypeSuccess
-
-    // Create JWT asynchronousnly
-    const jwtOptions = { expiresIn: config.JWT_EXPIRES_IN }
-    jwt.sign(result.token, config.JWT_SECRET, jwtOptions, (err, token) => {
+    // Create token JWT asynchronousnly
+    jwtAuth.signToken(result.payload, (err, token) => {
         if (err) return next(err)
-        // Return new JWT
-        res.status(200)
-            .cookie('token', token, {
-                httpOnly: true,
-                sameSite: 'strict',
-                path: config.API_PREFIX,
-                secure: config.HTTPS_ENABLED,
-                maxAge: config.JWT_EXPIRES_IN * 1000
+        // Initialize session
+        const client = { ip: req.ip, useragent: req.useragent }
+        Users.initSession(result.user._id, req.cookies[jwtAuth.COOKIE_SESSION], client)
+            .then(sid => {
+                // Return access token JWT
+                res.status(200).cookie(jwtAuth.COOKIE_TOKEN, token, jwtAuth.COOKIE_TOKEN_OPTIONS)
+                // Return session ID JWT if the user does not use 2FA or they passed 2FA
+                if (!result.user.use2FA || (result.user.use2FA && result.user.passed2FA))
+                    res.cookie(jwtAuth.COOKIE_SESSION, sid, jwtAuth.COOKIE_SESSION_OPTIONS)
+                // TODO: add header to identify the application and optionally return the token in the body
+                // TODO: also pass tokens in body for non-web apps!
+                res.json({ user: result.user })
             })
-            // also pass token in body for non-web apps!
-            // TODO: add header to identify the application and optionally return the token in the body
-            .json({ session: result.session, token })
+            .catch(next)
     })
 }
 

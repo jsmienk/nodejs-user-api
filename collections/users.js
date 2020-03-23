@@ -1,12 +1,16 @@
+'use strict'
+
 const config = require('config')
 const errors = require('utils/errors')
 const logger = require('utils/logger').logger
+const jwtAuth = require('utils/jwt')
 const bcrypt = require('bcryptjs')
 const authenticator = require('authenticator')
+const getLocation = require('utils/geolocation')
 
-const User = require('collections/models/user')
-const AccountLog = require('collections/models/account-log')
 const DeviceSession = require('collections/models/device-session')
+const AccountLog = require('collections/models/account-log')
+const User = require('collections/models/user')
 
 /**
  * Operations:
@@ -26,15 +30,21 @@ module.exports = {
     updateById,
     removeById,
     findByEmail,
+    initSession,
+    getSessionById,
     logEvent
 }
 
+const SELECT_SENSITIVE = '+email +use2FA +verified'
+const SELECT_SENSITIVE_ALL = SELECT_SENSITIVE + ' +key2FA'
+
 /**
  * Authenticate a specific user using a provided email and password
+ * @returns result { user: Object, payload: Object, sessions: Map, authenticated: Boolean }
  */
 async function authenticateBasic(provided_email, password) {
     // Explicitly ask for hash because selection is disabled in the model
-    const user = await User.findOne({ email: provided_email }).select('+email +hash +key2FA +use2FA +verified')
+    const user = await User.findOne({ email: provided_email }).select(SELECT_SENSITIVE_ALL + ' +hash')
     if (!user) {
         // Compare 'nope' to 'password' to imitatie the time it takes if the user was found
         // The request duration no longer shows if an email address is in use
@@ -45,9 +55,9 @@ async function authenticateBasic(provided_email, password) {
     const authenticated = await bcrypt.compare(password, user.hash)
     // If we failed
     if (!authenticated)
-        return { session: { _id: user._id }, authenticated }
+        return { user: { _id: user._id }, authenticated }
 
-    return { ...createTokenAndSessionFromUser(user, false), authenticated }
+    return { ...jwtAuth.separateUser(user, false), authenticated }
 }
 
 /**
@@ -55,10 +65,11 @@ async function authenticateBasic(provided_email, password) {
  * key === null and use === false  means 2FA disabled
  * key !== null and use === false  means 2FA prepared
  * key !== null and use === true   means 2FA enabled
+ * @returns result { user: Object, payload: Object, sessions: Map, authenticated: Boolean }
  */
 async function authenticate2FA(id, totp) {
     // Explicitly ask for 2FA key because selection is disabled in the model
-    let user = await User.findById(id).select('+email +key2FA +use2FA +verified')
+    let user = await User.findById(id).select(SELECT_SENSITIVE)
     // If the user cannot be found
     if (!user) throw errors.not_found()
 
@@ -68,7 +79,7 @@ async function authenticate2FA(id, totp) {
     const authenticated = authenticator.verifyToken(user.key2FA, totp) !== null
     // If we failed
     if (!authenticated)
-        return { session: { _id: user._id }, authenticated }
+        return { user: { _id: user._id }, authenticated }
 
     // 2FA preparation success if use was disabled but the authentication succeeded
     if (!user.use2FA && authenticated) {
@@ -76,15 +87,15 @@ async function authenticate2FA(id, totp) {
         user = await updateById(id, { use2FA: true })
     }
 
-    return { ...createTokenAndSessionFromUser(user, authenticated), authenticated }
+    return { ...jwtAuth.separateUser(user, authenticated), authenticated }
 }
 
 /**
  * Get all users from the database
- * Does not return the users' logs and hashed passwords
+ * Does not return the users' hashed passwords
  */
 async function getAll() {
-    return User.find().select('-__v -log -sessions')
+    return User.find().select('-__v')
 }
 
 /**
@@ -93,8 +104,7 @@ async function getAll() {
  */
 async function getById(id, sensitive=false) {
     const query = User.findById(id).select('-__v')
-    if (!sensitive) query.select('-log -sessions')
-    if (sensitive)  query.select('+email +use2FA +verified')
+    if (sensitive)  query.select(SELECT_SENSITIVE)
     return query
 }
 
@@ -134,8 +144,8 @@ async function updateById(id, params) {
  * Delete an existing user using its MongoDB ObjectId
  */
 async function removeById(user) {
-    await AccountLog.deleteMany({ user })
     await DeviceSession.deleteMany({ user })
+    await AccountLog.deleteMany({ user })
     return User.findByIdAndRemove(user)
 }
 
@@ -148,40 +158,67 @@ async function findByEmail(email) {
 }
 
 /**
- * Log an account related event
+ * Start or update a device session
+ * @param id user id
+ * @param sid session id | null
+ * @param client { ip: string, useragent: object }
  */
-async function logEvent(user, ip, type) {
-    return new AccountLog({ user, ip, type }).save()
+async function initSession(id, sid, client) {
+    // Format client details
+    const ip = client.ip
+    const expires = Date.now() + config.SESSION_EXPIRES_IN * 1000
+    let location
+    try { location = await getLocation(ip) } catch (_) {}
+    const platform = client.useragent.os
+    const application = `${client.useragent.browser} (${client.useragent.version})`
+
+    let session
+    let sessionID = sid
+    try {
+        // Find existing session
+        session = await getSessionById(sid)
+        session.since = new Date()
+        session.ip = ip
+        session.expires = expires
+        session.location = location
+        session.platform = platform
+        session.application = application
+    } catch (_) {
+        // Create a new one
+        sessionID = jwtAuth.getNewSID()
+        session = new DeviceSession({ 
+            hash: jwtAuth.getSIDHash(sessionID),
+            user: id, ip, expires, location, platform, application
+        })
+    }
+    // Save session
+    await session.save()
+    // Return unhashed session id
+    return sessionID
 }
 
-
-// HELPERS
+/**
+ * Get a session by its session id
+ * @param sid session id
+ */
+async function getSessionById(sid, popUser=false) {
+    const query = DeviceSession.find({ hash: jwtAuth.getSIDHash(sid) })
+    if (popUser)
+        query.populate({ path: 'user', select: SELECT_SENSITIVE_ALL })
+    const sessions = await query
+    if (sessions.length === 0)
+        throw errors.not_found('Session is not found!')
+    return sessions[0]
+}
 
 /**
- * Helper to create a token and session object from an authenticated user
- * @param user
- * @param passed2FA
+ * Log an account related event
+ * @param user user id
+ * @param ip client IP address (string)
+ * @param type account event type as defined by that module (utils/account-logger)
  */
-function createTokenAndSessionFromUser(user, passed2FA=false) {
-    // Specify inclusion criteria to exclude new fields by default!
-    const { _id, meta, email, name, use2FA, creation, verified } = user.toObject()
-
-    // Only return non-sensitive information in the token payload
-    const token = {
-        _id,
-        verified,
-        use2FA,
-        passed2FA
-    }
-
-    const session = { ...token }
-    // Add more sensitive information if this is the end of the auth flow
-    if (!use2FA || (use2FA && passed2FA)) {
-        session.meta = meta
-        session.email = email
-        session.name = name
-        session.creation = creation
-    }
-
-    return { token, session }
+async function logEvent(user, ip, type) {
+    let location
+    try { location = await getLocation(ip) } catch (ignore) {}
+    return new AccountLog({ user, ip, type, location }).save()
 }

@@ -63,8 +63,6 @@ const user = new Schema({
         default: false,
         select: false
     },
-    log: [{ type: Schema.Types.ObjectId, ref: 'AccountLog' }],
-    sessions: [{ type: Schema.Types.ObjectId, ref: 'DeviceSession' }],
     // below is used by application specific information
     meta: { type: Object }
 })

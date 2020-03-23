@@ -2,6 +2,7 @@
 node_modules
 /dist
 /ssl
+/geolite2-city
 
 # local env files
 *.env

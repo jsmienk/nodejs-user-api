@@ -1,3 +1,5 @@
+'use strict'
+
 const RateLimiter = require('async-ratelimiter')
 const Redis = require('ioredis')
 

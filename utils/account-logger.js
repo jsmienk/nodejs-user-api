@@ -1,3 +1,5 @@
+'use strict'
+
 const logger = require('utils/logger').logger
 
 const Users = require('collections/users')

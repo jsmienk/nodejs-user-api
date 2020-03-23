@@ -1,8 +1,10 @@
+'use strict'
+
 const config = require('config')
 const router = require('express').Router()
 const errors = require('utils/errors')
 const logger = require('utils/logger').logger
-const jwt = require('jsonwebtoken')
+const jwtAuth = require('utils/jwt')
 const accountEventType = require('utils/account-logger').enumEventType
 
 const Users = require('collections/users')
@@ -22,7 +24,7 @@ router.delete('/:id', removeUserById)
  * Get all users
  * <- 200 / 401 / 404 / 500
  */
-function getAllUsers(req, res, next) {
+function getAllUsers(_, res, next) {
     Users.getAll()
         .then(users => users && users.length ? res.status(200).json({ users }) : next(errors.not_found()))
         .catch(next)
@@ -41,7 +43,9 @@ function getUserById(req, res, next) {
 
 /**
  * Create a new user
- * @param email, name, password
+ * @param email is trimmed and converted to lowercase
+ * @param name is trimmed
+ * @param password is trimmed
  * <- 201 / 400 / 409 / 500
  */
 function createUser(req, res, next) {
@@ -59,13 +63,11 @@ function createUser(req, res, next) {
         return next(errors.bad_request('Password must be at least ' + config.MIN_PASS_LENGTH + ' characters long!'))
     }
 
-    // Try to create a user (MongoDB is responsible for length/regex validation)
-    Users.create(email, name, password)
+    // Try to create a user (MongoDB is responsible for email and name length/regex validation)
+    Users.create(email.trim().toLowerCase(), name.trim(), password.trim())
         .then(user => {
-            const jwtData = { verify: { _id: user._id } }
-            const jwtOptions = { expiresIn: config.JWT_PW_VERIFY_TIME }
-            // Generate verification JWT
-            jwt.sign(jwtData, config.JWT_SECRET, jwtOptions, (err, token) => {
+            // Generate email verification JWT
+            jwtAuth.signEmailToken({ verify: user._id }, (err, token) => {
                 if (err) return next(err)
 
                 const verifyLink = link + token
@@ -83,15 +85,18 @@ function createUser(req, res, next) {
 
 /**
  * Update an existing user by its id and providing an email, and/or name, and/or password
- * @param id, email, name, password
+ * @param id
+ * @param email is trimmed and converted to lowercase
+ * @param name is trimmed
+ * @param password is trimmed
  * <- 204 / 400 / 401 / 403 / 404 / 409 / 500
  */
 function updateUserById(req, res, next) {
     // Only take what we may expect
     const params = {
-        email: req.body.email,
-        name: req.body.name,
-        password: req.body.password
+        email: req.body.email ? req.body.email.trim().toLowerCase() : null,
+        name: req.body.name ? req.body.name.trim() : null,
+        password: req.body.password ? req.body.password.trim() : null
     }
 
     // Check if any parameters were provided (400)
@@ -122,6 +127,7 @@ function updateUserById(req, res, next) {
 
 /**
  * Remove a specific user by its id provided as query parameter
+ * Since, currently, a user can only remove themselves, their auth cookie is also cleared
  * @param id
  * <- 204 / 400 / 401 / 403 / 404 / 500
  */
@@ -132,7 +138,10 @@ function removeUserById(req, res, next) {
     }
 
     Users.removeById(req.params.id)
-        .then(user => user ? res.status(204).send() : next(errors.not_found()))
+        .then(user => {
+            if (!user) return next(errors.not_found())
+            jwtAuth.clearCookies(res).status(204).send()
+        })
         .catch(next)
 }
 

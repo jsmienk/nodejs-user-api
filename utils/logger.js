@@ -1,3 +1,5 @@
+'use strict'
+
 const enumLevel = Object.freeze({
     DEBUG: 1,  // very verbose
     INFO: 2, // verbose
@@ -19,7 +21,7 @@ class Logger {
                     this.debug('        ' + header + ': ' + reqHeaders[header])
                 }
                 // Trailing new line
-                this.info('')
+                this.debug('')
                 // Response
                 this.info('    <- ' + res.statusCode + ' ' + res.statusMessage)
                 // Log headers on debug level

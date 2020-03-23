@@ -1,3 +1,5 @@
+'use strict'
+
 const logger = require('utils/logger').logger
 
 /*
@@ -51,9 +53,9 @@ exports.fromThrown = (thrown) => {
 
     // Default error (500)
     let error = {
-        code: thrown.code ? thrown.code : 500,
-        title: thrown.name ? thrown.name : 'Error',
-        message: thrown.message ? thrown.message : 'Unknown error occured!',
+        code: thrown.code || 500,
+        title: thrown.name || 'Error',
+        message: thrown.message || 'Unknown error occured!',
     }
 
     // MongoDB: Invalid ObjectId (400)
@@ -76,9 +78,13 @@ exports.fromThrown = (thrown) => {
     if (thrown.name === 'UnauthorizedError') {
         error = this.create(401, 'JWT Authentication Error', 'Invalid or expired token was provided!')
     }
-    // MongoDB: Duplicate entry on required field (409)
-    if (thrown.name === 'MongoError' && thrown.code === 11000) {
-        error = this.conflict(thrown.message)
+    // MongoDB
+    if (thrown.name === 'MongoError') {
+        error = this.bad_request(thrown.message)
+        // Duplicate entry on required field (409)
+        if (thrown.code === 11000) {
+            error = this.conflict(thrown.message)
+        }
     }
 
     return error
