@@ -235,7 +235,7 @@ function handleAuthResult(result, req, res, next, eventTypeFail, eventTypeSucces
                     res.cookie(jwtAuth.COOKIE_SESSION, sid, jwtAuth.COOKIE_SESSION_OPTIONS)
                 // TODO: add header to identify the application and optionally return the token in the body
                 // TODO: also pass tokens in body for non-web apps!
-                res.json({ user: result.user })
+                res.json({ user: result.user, expiresIn: config.SESSION_EXPIRES_IN * 1000 })
             })
             .catch(next)
     })

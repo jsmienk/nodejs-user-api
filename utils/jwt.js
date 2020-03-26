@@ -139,7 +139,7 @@ exports.separateUser = (_user, passed2FA=false) => {
 
 const COOKIE_OPTIONS = {
     httpOnly: true,
-    sameSite: 'strict',
+    sameSite: 'Strict',
     path: config.API_PREFIX,
     secure: config.HTTPS_ENABLED
 }

@@ -6,13 +6,13 @@ const API_PREFIX = '/api/v0'
 const PORT = 3000
 
 const { level } = require('utils/logger')
-const LOG_LEVEL = level.INFO
+const LOG_LEVEL = level.DEBUG
 
 /* SECURITY */
-const HTTPS_ENABLED = true
+const HTTPS_ENABLED = false
 const HTTPS_KEY_FILE = 'ssl/key.pem'
 const HTTPS_CERT_FILE = 'ssl/cert.pem'
-const CORS_DOMAINS = ['http://127.0.0.1:8080', 'http://localhost:8080']
+const CORS_DOMAINS = ['http://127.0.0.1:8080']
 
 /* MONGODB */
 const MONGODB_NAME = 'development'
