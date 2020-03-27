@@ -69,13 +69,13 @@ async function authenticateBasic(provided_email, password) {
  */
 async function authenticate2FA(id, totp) {
     // Explicitly ask for 2FA key because selection is disabled in the model
-    let user = await User.findById(id).select(SELECT_SENSITIVE)
+    let user = await User.findById(id).select(SELECT_SENSITIVE_ALL)
     // If the user cannot be found
     if (!user) throw errors.not_found()
-
+    
     // If the user does not use 2FA, do not reveal it is disabled
     if (!user.key2FA) throw errors.unauthorized()
-
+    
     const authenticated = authenticator.verifyToken(user.key2FA, totp) !== null
     // If we failed
     if (!authenticated)

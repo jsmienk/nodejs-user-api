@@ -224,20 +224,24 @@ function handleAuthResult(result, req, res, next, eventTypeFail, eventTypeSucces
     // Create token JWT asynchronousnly
     jwtAuth.signToken(result.payload, (err, token) => {
         if (err) return next(err)
-        // Initialize session
-        const client = { ip: req.ip, useragent: req.useragent }
-        Users.initSession(result.user._id, req.cookies[jwtAuth.COOKIE_SESSION], client)
-            .then(sid => {
-                // Return access token JWT
-                res.status(200).cookie(jwtAuth.COOKIE_TOKEN, token, jwtAuth.COOKIE_TOKEN_OPTIONS)
-                // Return session ID JWT if the user does not use 2FA or they passed 2FA
-                if (!result.user.use2FA || (result.user.use2FA && result.user.passed2FA))
-                    res.cookie(jwtAuth.COOKIE_SESSION, sid, jwtAuth.COOKIE_SESSION_OPTIONS)
-                // TODO: add header to identify the application and optionally return the token in the body
-                // TODO: also pass tokens in body for non-web apps!
-                res.json({ user: result.user, expiresIn: config.SESSION_EXPIRES_IN * 1000 })
-            })
-            .catch(next)
+
+        // Return access token JWT
+        res.status(200).cookie(jwtAuth.COOKIE_TOKEN, token, jwtAuth.COOKIE_TOKEN_OPTIONS)
+        // Prepare response
+        // TODO: add header to identify the application and optionally return the token in the body
+        // TODO: also pass tokens in body for non-web apps!
+        const response = { user: result.user, expiresIn: config.SESSION_EXPIRES_IN * 1000 }
+
+        // Initialize session if end of auth flow
+        if (!result.user.use2FA || (result.user.use2FA && result.user.passed2FA)) {
+            const client = { ip: req.ip, useragent: req.useragent }
+            Users.initSession(result.user._id, req.cookies[jwtAuth.COOKIE_SESSION], client)
+                .then(sid => {
+                    // Add session cookie
+                    res.cookie(jwtAuth.COOKIE_SESSION, sid, jwtAuth.COOKIE_SESSION_OPTIONS).json(response)
+                })
+                .catch(next)
+        } else res.json(response)
     })
 }
 

@@ -48,7 +48,6 @@ exports.verificationHandler = expressJWT({ secret: config.JWT_SECRET, algorithms
         { methods: ['POST'], url: config.API_PREFIX + '/auth/reset' },  // Request password reset
         { methods: ['PUT'], url: new RegExp(config.API_PREFIX + '/auth/reset/[a-zA-Z._]+', 'g') },  // Reset password
         { methods: ['PUT'], url: new RegExp(config.API_PREFIX + '/auth/verify/[a-zA-Z._]+', 'g') },  // Verify email
-        // { methods: ['POST'], url: config.API_PREFIX + '/auth/2fa/verify' },  // Verify 2FA
     ]
 })
 
@@ -63,7 +62,11 @@ function getToken (req) {
     return null
 }
 
-async function isRevoked(_, payload, done) {
+async function isRevoked(req, payload, done) {
+    // Do no revoke token if user is trying to pass 2FA
+    if (req.path === config.API_PREFIX + '/auth/2fa/verify' ||
+        req.path === config.API_PREFIX + '/auth/2fa/verify/')
+        return done()
     // Revoke token if user did not pass 2FA (if enabled)
     if (payload.use2FA && !payload.passed2FA)
         return done('Client has not passed 2FA yet!', true)
@@ -77,6 +80,7 @@ async function isRevoked(_, payload, done) {
  * Tries to refresh an expired token JWT if a valid session JWT is provided
  */
 exports.refreshHandler = (err1, req, res, next) => {
+    logger.warn(err1)
     const anonError = errors.unauthorized('No valid access token or session ID provided!')
 
     const sid = req.cookies[exports.COOKIE_SESSION]
@@ -100,7 +104,10 @@ exports.refreshHandler = (err1, req, res, next) => {
                     next()
                 })
             })
-            .catch(_ => next(anonError))
+            .catch(err3 => {
+                logger.warn(err3)
+                next(anonError)
+            })
     } else next(err1)
 }
 
