@@ -19,6 +19,9 @@ router.post(  '/',    createUser)
 router.put(   '/:id', updateUserById)
 router.delete('/:id', removeUserById)
 
+router.get(   '/:id/sessions', getUsersSessions)
+router.delete('/:id/sessions', revokeSession)
+
 
 /**
  * Get all users
@@ -142,6 +145,25 @@ function removeUserById(req, res, next) {
             if (!user) return next(errors.not_found())
             jwtAuth.clearCookies(res).status(204).send()
         })
+        .catch(next)
+}
+
+/**
+ * Get the authenticated device sessions for the authenticated user
+ */
+function getUsersSessions(req, res, next) {
+    Users.getSessionsByUserId(req.user._id)
+        .then(sessions => res.status(200).json({ sessions }))
+        .catch(next)
+}
+
+/**
+ * Revoke a session by its session id hash
+ * @param hash session id hash
+ */
+function revokeSession(req, res, next) {
+    Users.revokeSession(req.body.hash)
+        .then(_ => res.status(204).send())
         .catch(next)
 }
 

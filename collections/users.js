@@ -32,6 +32,8 @@ module.exports = {
     findByEmail,
     initSession,
     getSessionById,
+    getSessionsByUserId,
+    revokeSession,
     logEvent
 }
 
@@ -209,6 +211,21 @@ async function getSessionById(sid, popUser=false) {
     if (sessions.length === 0)
         throw errors.not_found('Session is not found!')
     return sessions[0]
+}
+
+/**
+ * Get all sessions for a certain user
+ * @param user user id
+ */
+async function getSessionsByUserId(user) {
+    return DeviceSession.find({ user })
+}
+
+/**
+ * Revoke a session using its unique session id hash
+ */
+async function revokeSession(hash) {
+    return DeviceSession.findOneAndRemove({ hash })
 }
 
 /**

@@ -14,12 +14,10 @@ const config = require('config')
 const errors = require('utils/errors')
 const logger = require('utils/logger').logger
 const expressJWT = require('express-jwt')
-const bcrypt = require('bcryptjs')
 const crypto = require('crypto')
 const jwt = require('jsonwebtoken')
 
 const Users = require('collections/users')
-const { DeviceSession } = require('collections/models/user')
 
 
 // SIGNING / VERIFICATION WRAPPERS
@@ -89,9 +87,11 @@ exports.refreshHandler = (err1, req, res, next) => {
         Users.getSessionById(sid, true)
             .then(session => {
                 // Check expiration time
-                logger.debug('NOW: ' + Date.now())
-                logger.debug('EXP: ' + session.expires)
-                if (session.expires < Date.now()) return next(anonError)
+                if (session.expires < Date.now()) {
+                    // Remove session if expired
+                    Users.revokeSession(session.hash).catch(console.warn)
+                    return next(anonError)
+                }
                 // If not expired, generate new token JWT
                 const contents = exports.separateUser(session.user, true)
                 exports.signToken(contents.payload, (err2, token) => {

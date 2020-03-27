@@ -11,7 +11,7 @@ platform    String  e.g. MacOS 13.0.1
 application String  e.g. Chrome 46
 */
 const session = new Schema({
-    hash: { type: String, required: true, index: true },
+    hash: { type: String, unique: true, required: true },
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     since: { type: Date, required: true, default: Date.now },
     ip: { type: String, required: true },

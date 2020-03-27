@@ -14,13 +14,13 @@ const https = require('https')
 // TODO: require('utils/rate-limit')
 
 // Register request middleware (order matters)
-app.use(logger.requestLogger)
+app.use(require('helmet')())
 app.use(require('cors')({
     origin: config.CORS_DOMAINS,
     methods: 'GET,POST,PUT,DELETE',
     credentials: true
 }))
-app.use(require('helmet')())
+app.use(logger.requestLogger)
 app.use(require('cookie-parser')())
 app.use(require('utils/jwt').verificationHandler)
 app.use(require('utils/jwt').refreshHandler)

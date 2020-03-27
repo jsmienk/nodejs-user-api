@@ -46,7 +46,14 @@ function authenticateBasic(req, res, next) {
 /**
  * Logout by clearing token session cookies
  */
-function logout(_, res, __) {
+function logout(req, res, __) {
+    // Try to remove current device session
+    const sid = req.cookies[jwtAuth.COOKIE_SESSION]
+    if (!!sid) {
+        Users.getSessionById(sid, true)
+            .then(session => Users.revokeSession(session.hash).catch(console.warn))
+            .catch(console.warn)
+    }
     jwtAuth.clearCookies(res).status(204).send()
 }
 
