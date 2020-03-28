@@ -78,12 +78,11 @@ async function isRevoked(req, payload, done) {
  * Tries to refresh an expired token JWT if a valid session JWT is provided
  */
 exports.refreshHandler = (err1, req, res, next) => {
-    logger.warn(err1)
     const anonError = errors.unauthorized('No valid access token or session ID provided!')
-
     const sid = req.cookies[exports.COOKIE_SESSION]
     // If the access token has expired, then we may use a valid session id JWT to grant a new access JWT
     if (!!sid) {
+        logger.info('\n  REFRESHING TOKEN')
         Users.getSessionById(sid, true)
             .then(session => {
                 // Check expiration time

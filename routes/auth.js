@@ -167,7 +167,7 @@ function prepare2FA(req, res, next) {
             res.accountEvent = { userId: user._id, type: accountEventType._2FA_PREPARED }
             // Generate and return TOTP application registration QR string
             const registration = authenticator.generateTotpUri(key2FA, user.email, config.APP_NAME, 'SHA1', 6, 30)
-            res.status(201).send({ registration })
+            res.status(201).send({ registration, key2FA })
         })
         .catch(next)
 }
@@ -187,8 +187,8 @@ function authenticate2FA(req, res, next) {
     Users.authenticate2FA(req.user._id, token)
         .then(result => {
             // If this request was to enable 2FA. log the enabling 2FA,
-            if (!req.user.use2FA && result.session.use2FA)
-                res.accountEvent = { userId: result.session._id, type: accountEventType._2FA_ENABLED }
+            if (!req.user.use2FA && result.user.use2FA)
+                res.accountEvent = { userId: result.user._id, type: accountEventType._2FA_ENABLED }
                 handleAuthResult(result, req, res, next, accountEventType._2FA_FAIL, accountEventType._2FA_SUCCESS)
         })
         .catch(next)
