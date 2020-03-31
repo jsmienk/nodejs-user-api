@@ -10,8 +10,8 @@ const LOG_LEVEL = level.DEBUG
 
 /* SECURITY */
 const HTTPS_ENABLED = true
-const HTTPS_KEY_FILE = 'ssl/key.pem'
-const HTTPS_CERT_FILE = 'ssl/cert.pem'
+const HTTPS_KEY_FILE = 'ssl/example.key.pem'
+const HTTPS_CERT_FILE = 'ssl/example.crt.pem'
 const CORS_DOMAINS = ['http://192.168.178.48:8080', 'http://127.0.0.1:8080']
 
 /* MONGODB */

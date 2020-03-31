@@ -17,8 +17,9 @@ REST API for user management, featuring: creating, retrieving, updating, and rem
 - [Security Cheatsheet](https://cheatsheetseries.owasp.org)
 - [Security Checklist](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/HTML5_Security_Cheat_Sheet.md)
 - [DB Performance](https://www.mongodb.com/blog/post/performance-best-practices-mongodb-data-modeling-and-memory-sizing)
-- [Self-Signed Cert creation](https://nodejs.org/en/knowledge/HTTP/servers/how-to-create-a-HTTPS-server/)
 - [MaxMind IP Geolocation](https://github.com/runk/node-maxmind)
+- [Self-signed SAN certificate creation](https://stackoverflow.com/a/41366949/11435885)
+- [Make Safari accept self-signed certificate](https://stackoverflow.com/questions/47482264/cannot-accept-self-signed-certificate-in-safari-11-to-access-vagrant-homestead)
 
 # API Documentation
 
