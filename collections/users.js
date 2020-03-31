@@ -244,6 +244,6 @@ async function logEvent(user, ip, type) {
 /**
  * Get all account events for a certain user
  */
-async function getLogsByUserId(user) {
-    return AccountLog.find({ user })
+async function getLogsByUserId(user, limit=30) {
+    return AccountLog.find({ user }).sort('-date').limit(limit)
 }
