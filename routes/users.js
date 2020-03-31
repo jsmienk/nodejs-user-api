@@ -22,6 +22,8 @@ router.delete('/:id', removeUserById)
 router.get(   '/:id/sessions', getUsersSessions)
 router.delete('/:id/sessions', revokeSession)
 
+router.get('/:id/logs', getUsersLogs)
+
 
 /**
  * Get all users
@@ -164,6 +166,15 @@ function getUsersSessions(req, res, next) {
 function revokeSession(req, res, next) {
     Users.revokeSession(req.body.hash)
         .then(_ => res.status(204).send())
+        .catch(next)
+}
+
+/**
+ * Get the account event logs for the authenticated user
+ */
+function getUsersLogs(req, res, next) {
+    Users.getLogsByUserId(req.user._id)
+        .then(logs => res.status(200).json({ logs }))
         .catch(next)
 }
 

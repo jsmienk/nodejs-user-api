@@ -34,7 +34,8 @@ module.exports = {
     getSessionById,
     getSessionsByUserId,
     revokeSession,
-    logEvent
+    logEvent,
+    getLogsByUserId
 }
 
 const SELECT_SENSITIVE = '+email +use2FA +verified'
@@ -238,4 +239,11 @@ async function logEvent(user, ip, type) {
     let location
     try { location = await getLocation(ip) } catch (ignore) {}
     return new AccountLog({ user, ip, type, location }).save()
+}
+
+/**
+ * Get all account events for a certain user
+ */
+async function getLogsByUserId(user) {
+    return AccountLog.find({ user })
 }
